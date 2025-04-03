@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Costo de Fondos Artesanales</title>
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/Lucide.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="container mx-auto max-w-4xl bg-white p-6 rounded-lg shadow-md">
+        <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">Costo de Fondos Artesanales</h1>
+
+        <form id="articuloForm" class="space-y-4">
+            <!-- Datos del Artículo -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="nombreArticulo" class="block text-sm font-medium text-gray-700">Nombre Artículo:</label>
+                    <input type="text" id="nombreArticulo" name="nombreArticulo" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Ej: Fondo H-8284">
+                </div>
+                <div>
+                    <label for="cliente" class="block text-sm font-medium text-gray-700">Cliente:</label>
+                    <input type="text" id="cliente" name="cliente" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Ej: Rico">
+                </div>
+                <div>
+                    <label for="fecha" class="block text-sm font-medium text-gray-700">Fecha:</label>
+                    <input type="date" id="fecha" name="fecha" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                </div>
+            </div>
+            <div>
+                <label for="caracteristicas" class="block text-sm font-medium text-gray-700">Características:</label>
+                <textarea id="caracteristicas" name="caracteristicas" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Ej: fondo de suela grupón / vira grupón taco foliado"></textarea>
+            </div>
+
+            <!-- Componentes de Costo -->
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-medium text-gray-900 px-2">Componentes de Costo</legend>
+                <div id="componentesCosto" class="space-y-3 mt-2">
+                    <!-- Los componentes se añadirán aquí dinámicamente -->
+                </div>
+                <button type="button" id="addComponenteBtn" class="mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Añadir Componente
+                </button>
+            </fieldset>
+
+            <!-- Cálculos y Totales -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                    <label for="markup" class="block text-sm font-medium text-gray-700">Factor Multiplicador (Precio):</label>
+                    <input type="number" id="markup" name="markup" step="0.01" value="1.8" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Ej: 1.8">
+                </div>
+                 <div>
+                    <span class="block text-sm font-medium text-gray-700">Costo Total:</span>
+                    <span id="costoTotal" class="mt-1 block w-full px-3 py-2 bg-gray-100 rounded-md border border-gray-300 sm:text-sm font-semibold">$ 0.00</span>
+                 </div>
+                 <div>
+                     <span class="block text-sm font-medium text-gray-700">Precio Final (Estimado):</span>
+                     <span id="precioFinal" class="mt-1 block w-full px-3 py-2 bg-gray-100 rounded-md border border-gray-300 sm:text-sm font-bold text-indigo-700">$ 0.00</span>
+                 </div>
+            </div>
+
+            <!-- Botones de Acción -->
+             <div class="flex justify-end space-x-3 pt-4">
+                 <button type="button" id="calcularBtn" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                     Calcular
+                 </button>
+                 <button type="submit" id="guardarBtn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                     Guardar Artículo
+                 </button>
+                 <button type="button" id="limpiarBtn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400">
+                     Nuevo Artículo
+                 </button>
+             </div>
+        </form>
+
+        <!-- Historial de Artículos -->
+        <div class="mt-10">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Historial de Artículos Guardados</h2>
+            <div class="overflow-x-auto bg-white rounded-lg shadow">
+                <table id="historialTable" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artículo</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Costo Total</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Precio Final</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historialBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Filas del historial se añadirán aquí dinámicamente -->
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Cargando historial...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Snackbar -->
+        <div id="snackbar" class="fixed bottom-4 right-4 px-4 py-2 rounded-md shadow-lg text-white bg-gray-800 transition-opacity duration-300 opacity-0 z-50">
+            <!-- Mensaje del snackbar -->
+        </div>
+
+    </div>
+
+    <!-- Custom Script -->
+    <script src="script.js"></script>
+
+</body>
+</html>
