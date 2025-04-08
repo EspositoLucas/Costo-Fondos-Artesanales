@@ -84,3 +84,53 @@ input[type=number] {
  .border-red-500 {
     border-color: #ef4444; /* Tailwind red-500 */
  }
+
+ /* Estilos para previsualización de imagen */
+ #fotoPreviewContainer {
+    /* min-height: 100px; */ /* Asegura un área mínima visible */
+    /* display: flex; */ /* Centra el contenido vertical y horizontalmente */
+    /* align-items: center; */
+    /* justify-content: center; */
+    /* position: relative; */ /* Para posicionar el botón de borrar */
+    /* display: none; */ /* Oculto inicialmente */
+ }
+
+ #fotoPreview {
+    /* max-width: 100%; */ /* Asegura que la imagen no exceda el contenedor */
+    /* max-height: 256px; */ /* Limita la altura máxima (ej: 16rem/h-64) */
+    /* height: auto; */ /* Mantiene la proporción */
+    /* object-fit: contain; */ /* Asegura que toda la imagen sea visible sin recortar */
+    /* display: none; */ /* Oculto inicialmente */
+ }
+
+ #clearFotoBtn {
+    /* position: absolute; */
+    /* top: 0.25rem; */ /* Ajusta según necesites */
+    /* right: 0.25rem; */
+    /* background-color: #ef4444; */ /* red-500 */
+    /* color: white; */
+    /* border-radius: 9999px; */ /* rounded-full */
+    /* padding: 0.25rem; */ /* p-1 */
+    /* line-height: 1; */
+    /* cursor: pointer; */
+    /* font-size: 0.75rem; */ /* text-xs */
+    /* border: none; */
+    /* display: none; */ /* Oculto inicialmente */
+ }
+ #clearFotoBtn:hover {
+    /* background-color: #dc2626; */ /* red-600 */
+ }
+
+ /* Estilos para miniatura en tabla historial */
+ .historial-foto-miniatura {
+    max-width: 60px;  /* Ancho máximo para la miniatura */
+    max-height: 60px; /* Altura máxima para la miniatura */
+    height: auto;     /* Mantener proporción */
+    width: auto;      /* Mantener proporción */
+    object-fit: contain; /* Asegura que se vea completa sin cortar */
+    display: inline-block; /* Para que funcione el centrado si se aplica a la celda */
+    vertical-align: middle; /* Alinear verticalmente si es necesario */
+    background-color: #f9fafb; /* Fondo suave por si la imagen tiene transparencia */
+    border: 1px solid #e5e7eb; /* Borde sutil */
+    border-radius: 4px; /* Bordes redondeados */
+ }

@@ -14,6 +14,11 @@ const guardarBtn = document.getElementById('guardarBtn');
 const limpiarBtn = document.getElementById('limpiarBtn');
 const historialBody = document.getElementById('historialBody');
 const snackbar = document.getElementById('snackbar');
+const fotoInput = document.getElementById('foto');
+const fotoPreviewContainer = document.getElementById('fotoPreviewContainer');
+const fotoPreview = document.getElementById('fotoPreview');
+const fotoPlaceholder = document.getElementById('fotoPlaceholder');
+const clearFotoBtn = document.getElementById('clearFotoBtn');
 let currentEditingId = null;
 
 // Clave para localStorage
@@ -125,12 +130,70 @@ function eliminarComponente(button) {
     calcularCostos(); // Recalculate after removing
 }
 
+// Manejar selección y previsualización de imagen
+function handleFotoSelection(event) {
+    const file = event.target.files[0];
+    console.log("[handleFotoSelection] Archivo seleccionado:", file);
+
+    if (!file) {
+        clearImagePreview();
+        return;
+    }
+
+    // Validación básica de tipo de archivo
+    if (!file.type.startsWith('image/')) {
+        showSnackbar('Por favor, selecciona un archivo de imagen válido (JPEG, PNG, GIF, etc.).', 'error');
+        clearImagePreview();
+        return;
+    }
+
+    // Validación de tamaño (ej: 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5 MB en bytes
+    if (file.size > maxSize) {
+        showSnackbar(`El archivo es demasiado grande (${(file.size / 1024 / 1024).toFixed(1)}MB). El tamaño máximo es 5MB.`, 'error');
+        clearImagePreview();
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        console.log("[handleFotoSelection] Archivo leído, mostrando previsualización.");
+        fotoPreview.src = e.target.result;
+        fotoPreview.style.display = 'block';
+        fotoPlaceholder.style.display = 'none';
+        fotoPreviewContainer.style.display = 'flex'; // Make container visible
+        clearFotoBtn.style.display = 'inline-block'; // Show clear button
+    }
+
+    reader.onerror = function(e) {
+        console.error("[handleFotoSelection] Error al leer el archivo:", e);
+        showSnackbar('Error al leer el archivo de imagen.', 'error');
+        clearImagePreview();
+    }
+
+    reader.readAsDataURL(file); // Lee el archivo como Data URL
+}
+
+// Limpiar la previsualización de imagen y el input
+function clearImagePreview() {
+    console.log("[clearImagePreview] Limpiando previsualización de imagen.");
+    fotoInput.value = ''; // Resetea el input de archivo
+    fotoPreview.src = '#'; // Limpia la fuente de la imagen
+    fotoPreview.style.display = 'none';
+    fotoPlaceholder.style.display = 'block';
+    // No ocultamos el contenedor si ya se mostró una vez, mantenemos el área dashed
+    // fotoPreviewContainer.style.display = 'none';
+    clearFotoBtn.style.display = 'none'; // Oculta el botón de borrar
+}
+
 // Limpiar el formulario para ingresar un nuevo artículo
 function limpiarFormulario() {
     console.log("[limpiarFormulario] Limpiando formulario...");
     form.reset(); // Resets form fields to default values
     componentesCostoDiv.innerHTML = ''; // Clear dynamic components
     agregarComponente(); // Add one empty component row back
+    clearImagePreview(); // Limpia la previsualización de la imagen
 
     // Set date to today
     try {
@@ -235,6 +298,14 @@ function guardarArticulo(event) {
         costo: comp.querySelector('.component-cost').value.trim() // Store the raw string for calculations
     })).filter(comp => comp.nombre || comp.costo); // Keep only components with name or cost
 
+    // Obtener Data URL de la imagen si existe
+    const fotoDataUrl = fotoPreview.src.startsWith('data:image') ? fotoPreview.src : null;
+    if (fotoDataUrl) {
+        console.log(`[guardarArticulo] Se guardará imagen (Data URL de ${Math.round(fotoDataUrl.length / 1024)} KB).`);
+    } else {
+        console.log("[guardarArticulo] No se seleccionó imagen o la previsualización está vacía.");
+    }
+
     // Generate ID if new, use existing if editing
     const idParaGuardar = currentEditingId || Date.now().toString();
     console.log(`[guardarArticulo] ID para guardar/actualizar: ${idParaGuardar}. currentEditingId: ${currentEditingId}`);
@@ -249,7 +320,8 @@ function guardarArticulo(event) {
         componentes: componentes,
         markup: parseFloat(markupInput.value) || 1.8, // Store the markup used
         costoTotal: costoTotal, // Store calculated total cost
-        precioFinal: precioFinal // Store calculated final price
+        precioFinal: precioFinal, // Store calculated final price
+        fotoDataUrl: fotoDataUrl // Guarda el Data URL de la imagen
     };
     console.log("[guardarArticulo] Objeto artículo creado:", articulo);
 
@@ -306,7 +378,7 @@ function cargarHistorial() {
 
     if (articulosGuardados.length === 0) {
         console.log("[cargarHistorial] No hay artículos en el historial.");
-        historialBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No hay artículos guardados.</td></tr>';
+        historialBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No hay artículos guardados.</td></tr>'; // Colspan aumentado a 7
         return;
     }
 
@@ -334,10 +406,16 @@ function cargarHistorial() {
         // Store the ID on the row for easy access
         row.dataset.id = articulo.id;
 
+        // Generar HTML para la imagen (miniatura o placeholder)
+        const fotoHtml = articulo.fotoDataUrl
+            ? `<img src="${articulo.fotoDataUrl}" alt="Miniatura ${articulo.nombre || ''}" class="historial-foto-miniatura">`
+            : '<span class="text-xs text-gray-400">Sin foto</span>'; // Placeholder si no hay imagen
+
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${articulo.fecha || 'Sin fecha'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.nombre || 'Sin nombre'}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.cliente || 'Sin cliente'}</td>
+            <td class="px-2 py-2 whitespace-nowrap text-sm text-gray-500 align-middle text-center">${fotoHtml}</td> <!-- Celda Foto -->
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">$ ${formatCurrency(articulo.costoTotal)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-semibold">$ ${formatCurrency(articulo.precioFinal)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right space-x-2">
@@ -394,6 +472,7 @@ function cargarArticuloParaEditar(id) {
     console.log("[cargarArticuloParaEditar] Limpiando formulario antes de cargar datos...");
     form.reset(); // Resets basic fields
     componentesCostoDiv.innerHTML = ''; // Clear components
+    clearImagePreview(); // Asegura que la imagen previa esté limpia
 
     // Populate form fields
     console.log("[cargarArticuloParaEditar] Llenando campos del formulario...");
@@ -410,6 +489,19 @@ function cargarArticuloParaEditar(id) {
     } else {
         console.log("[cargarArticuloParaEditar] No hay componentes guardados, añadiendo uno vacío.");
         agregarComponente(); // Add an empty one if none exist
+    }
+
+    // Cargar imagen si existe
+    if (articulo.fotoDataUrl) {
+        console.log("[cargarArticuloParaEditar] Cargando imagen desde Data URL guardado.");
+        fotoPreview.src = articulo.fotoDataUrl;
+        fotoPreview.style.display = 'block';
+        fotoPlaceholder.style.display = 'none';
+        fotoPreviewContainer.style.display = 'flex';
+        clearFotoBtn.style.display = 'inline-block';
+    } else {
+        console.log("[cargarArticuloParaEditar] No hay imagen guardada para este artículo.");
+        // La previsualización ya fue limpiada por clearImagePreview()
     }
 
     console.log("[cargarArticuloParaEditar] Recalculando costos y precio...");
@@ -471,6 +563,8 @@ addComponenteBtn.addEventListener('click', () => agregarComponente());
 calcularBtn.addEventListener('click', calcularCostos);
 form.addEventListener('submit', guardarArticulo);
 limpiarBtn.addEventListener('click', limpiarFormulario);
+fotoInput.addEventListener('change', handleFotoSelection); // Listener para el input de foto
+clearFotoBtn.addEventListener('click', clearImagePreview); // Listener para limpiar la foto
 
 // Add input listeners to markup for real-time price update
 markupInput.addEventListener('input', calcularCostos);
@@ -513,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (localStorageAvailable) {
         cargarHistorial();
     } else {
-        historialBody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">El almacenamiento local no está disponible. No se puede cargar el historial.</td></tr>';
+        historialBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">El almacenamiento local no está disponible. No se puede cargar el historial.</td></tr>'; // Colspan aumentado a 7
     }
 
     console.log("[DOMContentLoaded] Inicialización completada.");
