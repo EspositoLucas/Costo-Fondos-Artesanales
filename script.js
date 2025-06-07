@@ -19,6 +19,7 @@ const fotoPreviewContainer = document.getElementById('fotoPreviewContainer');
 const fotoPreview = document.getElementById('fotoPreview');
 const fotoPlaceholder = document.getElementById('fotoPlaceholder');
 const clearFotoBtn = document.getElementById('clearFotoBtn');
+const buscarArticuloInput = document.getElementById('buscarArticulo');
 let currentEditingId = null;
 
 // Clave para localStorage
@@ -69,26 +70,50 @@ function calcularCostos() {
     let todosCalculosValidos = true;
 
     componentes.forEach(comp => {
+        // Calcular costo del componente principal
         const costoInput = comp.querySelector('.component-cost');
         const costoValue = costoInput.value.trim();
         let costoComponente = 0;
-        costoInput.classList.remove('border-red-500'); // Remove red border before checking
-        delete costoInput.dataset.errorShown; // Reset error flag
+        costoInput.classList.remove('border-red-500');
+        delete costoInput.dataset.errorShown;
 
         if (costoValue) {
             costoComponente = safeEval(costoValue);
             if (isNaN(costoComponente)) {
                 if (!costoInput.dataset.errorShown) {
-                    // Only show snackbar once per field until corrected
                     showSnackbar(`Cálculo inválido: "${costoValue}". Revisa la expresión.`, 'error');
                     costoInput.dataset.errorShown = 'true';
                 }
-                costoInput.classList.add('border-red-500'); // Add red border
+                costoInput.classList.add('border-red-500');
                 todosCalculosValidos = false;
-                costoComponente = 0; // Consider invalid calculation as 0 for total
+                costoComponente = 0;
             }
         }
-         costoTotalCalculado += costoComponente;
+
+        // Calcular costos de subcomponentes
+        const subcomponentes = comp.querySelectorAll('.subcomponent-cost');
+        subcomponentes.forEach(subInput => {
+            const subValue = subInput.value.trim();
+            let subCosto = 0;
+            subInput.classList.remove('border-red-500');
+            delete subInput.dataset.errorShown;
+
+            if (subValue) {
+                subCosto = safeEval(subValue);
+                if (isNaN(subCosto)) {
+                    if (!subInput.dataset.errorShown) {
+                        showSnackbar(`Cálculo inválido en subcomponente: "${subValue}". Revisa la expresión.`, 'error');
+                        subInput.dataset.errorShown = 'true';
+                    }
+                    subInput.classList.add('border-red-500');
+                    todosCalculosValidos = false;
+                    subCosto = 0;
+                }
+            }
+            costoComponente += subCosto;
+        });
+
+        costoTotalCalculado += costoComponente;
     });
 
     const markup = parseFloat(markupInput.value) || 0;
@@ -100,29 +125,165 @@ function calcularCostos() {
 }
 
 // Añadir un nuevo campo de componente al formulario
-function agregarComponente(nombre = '', costo = '') {
+function agregarComponente(nombre = '', costo = '', subcomponentes = []) {
     const div = document.createElement('div');
     div.className = 'component-input-group';
-    // Added component-name and component-cost classes for easier selection
+    
+    // Crear el HTML para el componente principal
     div.innerHTML = `
-        <input type="text" placeholder="Nombre Componente (Ej: Suela)" value="${nombre}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm component-name">
-        <input type="text" placeholder="Costo o Cálculo (Ej: 3000 o 450*1.2)" value="${costo}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm component-cost">
-        <button type="button" class="delete-button-text" title="Eliminar componente">
-            Eliminar
-        </button>
+        <div class="component-main">
+            <input type="text" placeholder="Nombre Componente (Ej: Suela)" value="${nombre}" 
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm component-name">
+            <input type="text" placeholder="Costo o Cálculo (Ej: 3000 o 450*1.2)" value="${costo}" 
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm component-cost">
+            <div class="flex space-x-2">
+                <button type="button" class="add-subcomponent-button" title="Añadir subcomponente">
+                    Agregar Subcomponente
+                </button>
+                <button type="button" class="delete-button-text" title="Eliminar componente">
+                    Eliminar
+                </button>
+            </div>
+        </div>
+        <div class="subcomponents-container space-y-2 mt-2 ml-4 border-l-2 border-gray-200 pl-4">
+            <!-- Los subcomponentes se añadirán aquí -->
+        </div>
     `;
-    const costInput = div.querySelector('.component-cost');
-    // Add input listeners to recalculate on change
-    costInput.addEventListener('input', calcularCostos);
-    costInput.addEventListener('blur', calcularCostos); // Recalculate on blur too
 
-    // Add listener for the delete button within this component
+    // Agregar listeners para los botones
+    const addSubcomponentBtn = div.querySelector('.add-subcomponent-button');
     const deleteButton = div.querySelector('.delete-button-text');
-    deleteButton.addEventListener('click', () => eliminarComponente(deleteButton)); // Pass the button itself
+    const costInput = div.querySelector('.component-cost');
+    const subcomponentsContainer = div.querySelector('.subcomponents-container');
+
+    // Listener para añadir subcomponente
+    addSubcomponentBtn.addEventListener('click', () => {
+        const subcomponentDiv = document.createElement('div');
+        subcomponentDiv.className = 'subcomponent-input-group';
+        subcomponentDiv.innerHTML = `
+            <input type="text" placeholder="Nombre Subcomponente" 
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm subcomponent-name">
+            <input type="text" placeholder="Costo o Cálculo" 
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm subcomponent-cost">
+            <button type="button" class="delete-button-text" title="Eliminar subcomponente">
+                Eliminar
+            </button>
+        `;
+
+        // Agregar listener para el costo del subcomponente
+        const subcomponentCostInput = subcomponentDiv.querySelector('.subcomponent-cost');
+        subcomponentCostInput.addEventListener('input', () => {
+            calcularCostoComponente(div);
+            calcularCostos();
+        });
+        subcomponentCostInput.addEventListener('blur', () => {
+            calcularCostoComponente(div);
+            calcularCostos();
+        });
+
+        // Agregar listener para el botón de eliminar
+        const deleteSubcomponentBtn = subcomponentDiv.querySelector('.delete-button-text');
+        deleteSubcomponentBtn.addEventListener('click', () => {
+            subcomponentDiv.remove();
+            calcularCostoComponente(div);
+            calcularCostos();
+        });
+
+        subcomponentsContainer.appendChild(subcomponentDiv);
+        // Cuando se agrega un subcomponente, hacer el costo del componente principal readonly
+        costInput.readOnly = true;
+    });
+
+    // Listener para el costo del componente principal
+    costInput.addEventListener('input', () => {
+        // Solo recalcular si no hay subcomponentes
+        if (subcomponentsContainer.children.length === 0) {
+            calcularCostos();
+        }
+    });
+    costInput.addEventListener('blur', () => {
+        // Solo recalcular si no hay subcomponentes
+        if (subcomponentsContainer.children.length === 0) {
+            calcularCostos();
+        }
+    });
+
+    // Listener para el botón de eliminar
+    deleteButton.addEventListener('click', () => eliminarComponente(deleteButton));
 
     componentesCostoDiv.appendChild(div);
+
+    // Cargar subcomponentes si existen
+    if (subcomponentes && subcomponentes.length > 0) {
+        subcomponentes.forEach(sub => {
+            const subcomponentDiv = document.createElement('div');
+            subcomponentDiv.className = 'subcomponent-input-group';
+            subcomponentDiv.innerHTML = `
+                <input type="text" placeholder="Nombre Subcomponente" value="${sub.nombre}" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm subcomponent-name">
+                <input type="text" placeholder="Costo o Cálculo" value="${sub.costo}" 
+                       class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm subcomponent-cost">
+                <button type="button" class="delete-button-text" title="Eliminar subcomponente">
+                    Eliminar
+                </button>
+            `;
+
+            // Agregar listeners para el subcomponente
+            const subcomponentCostInput = subcomponentDiv.querySelector('.subcomponent-cost');
+            subcomponentCostInput.addEventListener('input', () => {
+                calcularCostoComponente(div);
+                calcularCostos();
+            });
+            subcomponentCostInput.addEventListener('blur', () => {
+                calcularCostoComponente(div);
+                calcularCostos();
+            });
+
+            const deleteSubcomponentBtn = subcomponentDiv.querySelector('.delete-button-text');
+            deleteSubcomponentBtn.addEventListener('click', () => {
+                subcomponentDiv.remove();
+                calcularCostoComponente(div);
+                calcularCostos();
+            });
+
+            subcomponentsContainer.appendChild(subcomponentDiv);
+        });
+        // Si hay subcomponentes, hacer el costo del componente principal readonly
+        costInput.readOnly = true;
+    }
+
+    // Calcular el costo inicial del componente
+    calcularCostoComponente(div);
 }
 
+// Agregar nueva función para calcular el costo de un componente
+function calcularCostoComponente(componentDiv) {
+    const costInput = componentDiv.querySelector('.component-cost');
+    const subcomponentsContainer = componentDiv.querySelector('.subcomponents-container');
+    const subcomponentes = componentDiv.querySelectorAll('.subcomponent-cost');
+
+    // Si no hay subcomponentes, permitir edición directa del costo
+    if (subcomponentes.length === 0) {
+        costInput.readOnly = false;
+        return;
+    }
+
+    // Si hay subcomponentes, calcular la suma automáticamente
+    let costoTotal = 0;
+    subcomponentes.forEach(subInput => {
+        const subValue = subInput.value.trim();
+        if (subValue) {
+            const subCosto = safeEval(subValue);
+            if (!isNaN(subCosto)) {
+                costoTotal += subCosto;
+            }
+        }
+    });
+
+    // Actualizar el costo total del componente
+    costInput.value = costoTotal.toFixed(2);
+    costInput.readOnly = true;
+}
 
 // Eliminar un campo de componente del formulario
 function eliminarComponente(button) {
@@ -292,11 +453,19 @@ function guardarArticulo(event) {
         return; // Stop saving if there are calculation errors
     }
 
-    // Gather component data
-    const componentes = Array.from(componentesCostoDiv.querySelectorAll('.component-input-group')).map(comp => ({
-        nombre: comp.querySelector('.component-name').value.trim(),
-        costo: comp.querySelector('.component-cost').value.trim() // Store the raw string for calculations
-    })).filter(comp => comp.nombre || comp.costo); // Keep only components with name or cost
+    // Modificar la recolección de componentes para incluir subcomponentes
+    const componentes = Array.from(componentesCostoDiv.querySelectorAll('.component-input-group')).map(comp => {
+        const subcomponentes = Array.from(comp.querySelectorAll('.subcomponent-input-group')).map(sub => ({
+            nombre: sub.querySelector('.subcomponent-name').value.trim(),
+            costo: sub.querySelector('.subcomponent-cost').value.trim()
+        })).filter(sub => sub.nombre || sub.costo);
+
+        return {
+            nombre: comp.querySelector('.component-name').value.trim(),
+            costo: comp.querySelector('.component-cost').value.trim(),
+            subcomponentes: subcomponentes
+        };
+    }).filter(comp => comp.nombre || comp.costo || comp.subcomponentes.length > 0);
 
     // Obtener Data URL de la imagen si existe
     const fotoDataUrl = fotoPreview.src.startsWith('data:image') ? fotoPreview.src : null;
@@ -485,7 +654,7 @@ function cargarArticuloParaEditar(id) {
     // Re-add components from the loaded article
     console.log("[cargarArticuloParaEditar] Añadiendo componentes...");
     if (articulo.componentes && Array.isArray(articulo.componentes) && articulo.componentes.length > 0) {
-        articulo.componentes.forEach(comp => agregarComponente(comp.nombre, comp.costo));
+        articulo.componentes.forEach(comp => agregarComponente(comp.nombre, comp.costo, comp.subcomponentes));
     } else {
         console.log("[cargarArticuloParaEditar] No hay componentes guardados, añadiendo uno vacío.");
         agregarComponente(); // Add an empty one if none exist
@@ -557,6 +726,91 @@ function eliminarArticulo(id) {
     console.log("[eliminarArticulo] Proceso de eliminación finalizado.");
 }
 
+// Modificar la función filtrarHistorial
+function filtrarHistorial(busqueda) {
+    const articulosGuardados = getArticulosFromStorage();
+    const busquedaLower = busqueda.toLowerCase();
+    
+    const articulosFiltrados = articulosGuardados.filter(articulo => 
+        articulo.nombre.toLowerCase().includes(busquedaLower)
+    );
+
+    // Limpiar y actualizar la tabla con los resultados filtrados
+    historialBody.innerHTML = '';
+    
+    if (articulosFiltrados.length === 0) {
+        historialBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">No se encontraron artículos.</td></tr>';
+        return;
+    }
+
+    // Ordenar por fecha
+    articulosFiltrados.sort((a, b) => {
+        const dateA = new Date(a.fecha);
+        const dateB = new Date(b.fecha);
+        if (isNaN(dateA) && isNaN(dateB)) return 0;
+        if (isNaN(dateA)) return 1;
+        if (isNaN(dateB)) return -1;
+        return dateB - dateA;
+    });
+
+    const formatCurrency = (value) => (typeof value === 'number' && isFinite(value))
+        ? value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : 'N/A';
+
+    // Generar filas para los artículos filtrados
+    articulosFiltrados.forEach(articulo => {
+        const row = document.createElement('tr');
+        row.className = 'clickable-row';
+        row.dataset.id = articulo.id;
+
+        // Generar HTML para la imagen
+        const fotoHtml = articulo.fotoDataUrl
+            ? `<img src="${articulo.fotoDataUrl}" alt="Miniatura ${articulo.nombre || ''}" class="historial-foto-miniatura">`
+            : '<span class="text-xs text-gray-400">Sin foto</span>';
+
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${articulo.fecha || 'Sin fecha'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.nombre || 'Sin nombre'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.cliente || 'Sin cliente'}</td>
+            <td class="px-2 py-2 whitespace-nowrap text-sm text-gray-500 align-middle text-center">${fotoHtml}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">$ ${formatCurrency(articulo.costoTotal)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-semibold">$ ${formatCurrency(articulo.precioFinal)}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right space-x-2">
+                <button class="edit-button-icon" title="Editar Artículo">
+                    <i class="lucide">Editar</i>
+                </button>
+                <button class="delete-button-text" title="Eliminar Artículo">
+                    Eliminar
+                </button>
+            </td>
+        `;
+
+        // Agregar event listeners
+        const editButton = row.querySelector('.edit-button-icon');
+        const deleteButton = row.querySelector('.delete-button-text');
+
+        editButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            cargarArticuloParaEditar(articulo.id);
+        });
+
+        deleteButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            eliminarArticulo(articulo.id);
+        });
+
+        row.addEventListener('click', () => {
+            cargarArticuloParaEditar(articulo.id);
+        });
+
+        historialBody.appendChild(row);
+    });
+}
+
+// Agregar listener para la búsqueda
+buscarArticuloInput.addEventListener('input', (e) => {
+    filtrarHistorial(e.target.value);
+});
 
 // --- Event Listeners ---
 addComponenteBtn.addEventListener('click', () => agregarComponente());
