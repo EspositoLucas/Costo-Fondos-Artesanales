@@ -39,10 +39,27 @@ input[type=number] {
 
 /* Layout de componentes */
 .component-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    margin-bottom: 0.75rem;
+}
+
+.component-main {
     display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 0.75rem; /* Equivalente a gap-3 */
-    align-items: center;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+/* En pantallas medianas y grandes, ajustar el layout */
+@media (min-width: 768px) {
+    .component-main {
+        grid-template-columns: 1fr 1fr auto;
+        align-items: center;
+    }
 }
 
 /* Estilo para botones de texto "Eliminar" */
@@ -138,10 +155,19 @@ input[type=number] {
 /* Estilos para subcomponentes */
 .subcomponent-input-group {
     display: grid;
-    grid-template-columns: 1fr 1fr auto;
+    grid-template-columns: 1fr;
     gap: 0.75rem;
-    align-items: center;
-    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: #f9fafb;
+    border-radius: 0.375rem;
+}
+
+/* En pantallas medianas y grandes, ajustar el layout de subcomponentes */
+@media (min-width: 768px) {
+    .subcomponent-input-group {
+        grid-template-columns: 1fr 1fr auto;
+        align-items: center;
+    }
 }
 
 .subcomponents-container {
@@ -150,24 +176,94 @@ input[type=number] {
     border-left: 2px solid #e5e7eb;
 }
 
-.add-subcomponent-button {
-    background-color: transparent;
-    border: none;
-    color: #4f46e5;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+/* Ajustar el contenedor de botones para que sea responsivo */
+.component-main .flex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-start;
+}
+
+@media (min-width: 768px) {
+    .component-main .flex {
+        justify-content: flex-end;
+    }
+}
+
+/* Ajustar los botones para que sean más táctiles en móviles */
+.add-subcomponent-button,
+.delete-button-text {
+    padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+/* Ajustar los inputs para que sean más fáciles de tocar en móviles */
+.component-name,
+.component-cost,
+.subcomponent-name,
+.subcomponent-cost {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    width: 100%;
+}
+
+/* Ajustar el espaciado en móviles */
+@media (max-width: 767px) {
+    .component-input-group {
+        padding: 0.75rem;
+    }
+
+    .subcomponent-input-group {
+        padding: 0.75rem;
+    }
+
+    .subcomponents-container {
+        padding-left: 0.75rem;
+    }
+}
+
+/* Mejorar la visibilidad de los bordes y fondos */
+.component-input-group {
+    background-color: white;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.subcomponent-input-group {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+}
+
+/* Ajustar el botón de agregar subcomponente para que sea más visible */
+.add-subcomponent-button {
+    background-color: #e0e7ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
     font-weight: 500;
-    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+    transition: all 0.2s ease-in-out;
 }
 
 .add-subcomponent-button:hover {
-    background-color: #e0e7ff;
+    background-color: #c7d2fe;
     color: #3730a3;
+}
+
+/* Ajustar el botón de eliminar para que sea más visible */
+.delete-button-text {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.delete-button-text:hover {
+    background-color: #fecaca;
+    color: #b91c1c;
 }
 
 /* Estilo para el campo de búsqueda */
