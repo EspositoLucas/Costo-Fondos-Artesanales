@@ -20,10 +20,34 @@ const fotoPreview = document.getElementById('fotoPreview');
 const fotoPlaceholder = document.getElementById('fotoPlaceholder');
 const clearFotoBtn = document.getElementById('clearFotoBtn');
 const buscarArticuloInput = document.getElementById('buscarArticulo');
+const backupBtn = document.getElementById('backupBtn');
 let currentEditingId = null;
+
+// Importar jsPDF
+const { jsPDF } = window.jspdf;
 
 // Clave para localStorage
 const STORAGE_KEY = 'articulosCalzado';
+
+// Configuración para IndexedDB
+const DB_NAME = 'ArticulosDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'articulos';
+
+// Función para abrir la base de datos IndexedDB
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+            }
+        };
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onerror = (event) => reject(event.target.error);
+    });
+}
 
 // --- Funciones ---
 
@@ -388,59 +412,80 @@ function limpiarFormulario() {
     console.log("[limpiarFormulario] Formulario limpiado.");
 }
 
-// Obtener artículos de localStorage con manejo de errores
-function getArticulosFromStorage() {
-    console.log("[getArticulosFromStorage] Intentando obtener artículos de localStorage...");
+// Obtener artículos de IndexedDB con manejo de errores
+async function getArticulosFromStorage() {
+    console.log("[getArticulosFromStorage] Intentando obtener artículos de IndexedDB...");
     try {
-        const data = localStorage.getItem(STORAGE_KEY);
-        if (!data) {
-            console.log("[getArticulosFromStorage] No se encontraron datos en localStorage.");
-            return [];
-        }
-        console.log("[getArticulosFromStorage] Datos encontrados, intentando parsear...");
-        const parsedData = JSON.parse(data);
-        // Basic validation: check if it's an array
-        if (!Array.isArray(parsedData)) {
-             console.warn("[getArticulosFromStorage] Datos corruptos: No es un array. Devolviendo array vacío.");
-             localStorage.removeItem(STORAGE_KEY); // Attempt to clear corrupted data
-             return [];
-        }
-        console.log(`[getArticulosFromStorage] Datos parseados con éxito. ${parsedData.length} artículos encontrados.`);
-        return parsedData;
+        const db = await openDB();
+        const transaction = db.transaction([STORE_NAME], 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.get(STORAGE_KEY);
+        return new Promise((resolve, reject) => {
+            request.onsuccess = (event) => {
+                const data = event.target.result;
+                if (!data) {
+                    console.log("[getArticulosFromStorage] No se encontraron datos en IndexedDB.");
+                    resolve([]);
+                } else {
+                    console.log("[getArticulosFromStorage] Datos encontrados, intentando parsear...");
+                    const parsedData = JSON.parse(data.value);
+                    // Basic validation: check if it's an array
+                    if (!Array.isArray(parsedData)) {
+                         console.warn("[getArticulosFromStorage] Datos corruptos: No es un array. Devolviendo array vacío.");
+                         resolve([]);
+                    } else {
+                        console.log(`[getArticulosFromStorage] Datos parseados con éxito. ${parsedData.length} artículos encontrados.`);
+                        resolve(parsedData);
+                    }
+                }
+            };
+            request.onerror = (event) => {
+                console.error("[getArticulosFromStorage] Error al leer datos:", event.target.error);
+                showSnackbar("Error al cargar el historial. Datos podrían estar corruptos.", "error");
+                resolve([]);
+            };
+        });
     } catch (error) {
-        console.error("[getArticulosFromStorage] Error al leer o parsear datos:", error);
-        showSnackbar("Error al cargar el historial. Datos podrían estar corruptos.", "error");
-        return []; // Return empty array on error
+        console.error("[getArticulosFromStorage] Error al abrir la base de datos:", error);
+        showSnackbar("Error al acceder al almacenamiento.", "error");
+        return [];
     }
 }
 
-// Guardar artículos en localStorage con manejo de errores
-function saveArticulosToStorage(articulos) {
-     console.log("[saveArticulosToStorage] Intentando guardar artículos en localStorage:", articulos);
+// Guardar artículos en IndexedDB con manejo de errores
+async function saveArticulosToStorage(articulos) {
+     console.log("[saveArticulosToStorage] Intentando guardar artículos en IndexedDB:", articulos);
      if (!Array.isArray(articulos)) {
          console.error("[saveArticulosToStorage] Error: Se intentó guardar algo que no es un array.");
          showSnackbar("Error interno al intentar guardar los datos.", "error");
          return false;
      }
      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(articulos));
-        console.log("[saveArticulosToStorage] Artículos guardados con éxito.");
-        return true;
+        const db = await openDB();
+        const transaction = db.transaction([STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.put({ key: STORAGE_KEY, value: JSON.stringify(articulos) });
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => {
+                console.log("[saveArticulosToStorage] Artículos guardados con éxito.");
+                resolve(true);
+            };
+            request.onerror = (event) => {
+                console.error("[saveArticulosToStorage] Error al guardar datos:", event.target.error);
+                showSnackbar("Error inesperado al guardar el artículo en el almacenamiento.", "error");
+                resolve(false);
+            };
+        });
     } catch (error) {
-        console.error("[saveArticulosToStorage] Error al guardar datos:", error);
-        // Check for QuotaExceededError specifically
-        if (error.name === 'QuotaExceededError' || (error.code === 22 || error.code === 1014)) { // Browser variations for quota error
-             showSnackbar("Error: No hay suficiente espacio para guardar. Considera eliminar artículos antiguos.", "error");
-        } else {
-             showSnackbar("Error inesperado al guardar el artículo en el almacenamiento local.", "error");
-        }
+        console.error("[saveArticulosToStorage] Error al abrir la base de datos:", error);
+        showSnackbar("Error al acceder al almacenamiento.", "error");
         return false;
     }
 }
 
 
 // Guardar el artículo actual (nuevo o editado)
-function guardarArticulo(event) {
+async function guardarArticulo(event) {
     console.log("[guardarArticulo] Intento de guardado iniciado...");
     event.preventDefault(); // Prevent default form submission
 
@@ -501,7 +546,7 @@ function guardarArticulo(event) {
         return;
     }
 
-    const articulosGuardados = getArticulosFromStorage();
+    const articulosGuardados = await getArticulosFromStorage();
     let updated = false;
     let foundIndex = -1;
 
@@ -526,10 +571,10 @@ function guardarArticulo(event) {
     console.log(`[guardarArticulo] Lista de artículos después de ${updated ? 'actualizar (índice: ' + foundIndex + ')' : 'añadir'}:`, articulosGuardados);
 
     // Attempt to save the updated list
-    if (saveArticulosToStorage(articulosGuardados)) {
+    if (await saveArticulosToStorage(articulosGuardados)) {
          showSnackbar(`Artículo "${articulo.nombre}" ${updated ? 'actualizado' : 'guardado'} con éxito.`, 'success');
          console.log("[guardarArticulo] Llamando a cargarHistorial() y limpiarFormulario().");
-         cargarHistorial(); // Refresh the history table
+         await cargarHistorial(); // Refresh the history table
          limpiarFormulario(); // Reset the form for the next entry
     } else {
          console.error("[guardarArticulo] Falló saveArticulosToStorage.");
@@ -539,10 +584,10 @@ function guardarArticulo(event) {
 }
 
 
-// Cargar el historial desde localStorage y mostrarlo en la tabla
-function cargarHistorial() {
+// Cargar el historial desde IndexedDB y mostrarlo en la tabla
+async function cargarHistorial() {
     console.log("[cargarHistorial] Cargando historial...");
-    const articulosGuardados = getArticulosFromStorage();
+    const articulosGuardados = await getArticulosFromStorage();
     historialBody.innerHTML = ''; // Clear previous content
 
     if (articulosGuardados.length === 0) {
@@ -601,22 +646,22 @@ function cargarHistorial() {
         const editButton = row.querySelector('.edit-button-icon');
         const deleteButton = row.querySelector('.delete-button-text');
 
-        editButton.addEventListener('click', (event) => {
+        editButton.addEventListener('click', async (event) => {
             event.stopPropagation(); // Prevent row click if button is clicked
             console.log(`[Click Editar] ID: ${articulo.id}`);
-            cargarArticuloParaEditar(articulo.id);
+            await cargarArticuloParaEditar(articulo.id);
         });
 
-        deleteButton.addEventListener('click', (event) => {
+        deleteButton.addEventListener('click', async (event) => {
             event.stopPropagation(); // Prevent row click if button is clicked
             console.log(`[Click Eliminar] ID: ${articulo.id}`);
-            eliminarArticulo(articulo.id);
+            await eliminarArticulo(articulo.id);
         });
 
          // Add listener to the row itself (optional, e.g., for quick view/edit)
-         row.addEventListener('click', () => {
+         row.addEventListener('click', async () => {
              console.log(`[Click Fila] Cargando artículo con ID: ${articulo.id}`);
-             cargarArticuloParaEditar(articulo.id);
+             await cargarArticuloParaEditar(articulo.id);
          });
 
         historialBody.appendChild(row);
@@ -625,9 +670,9 @@ function cargarHistorial() {
 }
 
 // Cargar un artículo guardado en el formulario para editarlo
-function cargarArticuloParaEditar(id) {
+async function cargarArticuloParaEditar(id) {
     console.log(`[cargarArticuloParaEditar] Intentando cargar artículo con ID: ${id}`);
-    const articulosGuardados = getArticulosFromStorage();
+    const articulosGuardados = await getArticulosFromStorage();
     const articulo = articulosGuardados.find(a => a.id === id);
 
     if (!articulo) {
@@ -691,7 +736,7 @@ function cargarArticuloParaEditar(id) {
 }
 
 // Eliminar un artículo del historial
-function eliminarArticulo(id) {
+async function eliminarArticulo(id) {
     console.log(`[eliminarArticulo] Intentando eliminar artículo con ID: ${id}`);
     // Confirmation dialog
     if (!confirm('¿Estás seguro de que quieres eliminar este artículo? Esta acción no se puede deshacer.')) {
@@ -699,7 +744,7 @@ function eliminarArticulo(id) {
         return; // Stop if user cancels
     }
 
-    let articulosGuardados = getArticulosFromStorage();
+    let articulosGuardados = await getArticulosFromStorage();
     const articuloAEliminarNombre = articulosGuardados.find(a => a.id === id)?.nombre || 'seleccionado'; // Get name for notification
     const originalLength = articulosGuardados.length;
 
@@ -709,10 +754,10 @@ function eliminarArticulo(id) {
     console.log(`[eliminarArticulo] Lista filtrada. Longitud original: ${originalLength}, nueva longitud: ${newLength}`);
 
     // Save the modified list back to storage
-    if (saveArticulosToStorage(articulosGuardados)) {
+    if (await saveArticulosToStorage(articulosGuardados)) {
         showSnackbar(`Artículo "${articuloAEliminarNombre}" eliminado.`, 'success');
         console.log("[eliminarArticulo] Llamando a cargarHistorial().");
-        cargarHistorial(); // Refresh the history table
+        await cargarHistorial(); // Refresh the history table
 
         // If the deleted item was the one currently being edited, clear the form
         if (currentEditingId === id) {
@@ -727,8 +772,8 @@ function eliminarArticulo(id) {
 }
 
 // Modificar la función filtrarHistorial
-function filtrarHistorial(busqueda) {
-    const articulosGuardados = getArticulosFromStorage();
+async function filtrarHistorial(busqueda) {
+    const articulosGuardados = await getArticulosFromStorage();
     const busquedaLower = busqueda.toLowerCase();
     
     const articulosFiltrados = articulosGuardados.filter(articulo => 
@@ -789,22 +834,122 @@ function filtrarHistorial(busqueda) {
         const editButton = row.querySelector('.edit-button-icon');
         const deleteButton = row.querySelector('.delete-button-text');
 
-        editButton.addEventListener('click', (event) => {
+        editButton.addEventListener('click', async (event) => {
             event.stopPropagation();
-            cargarArticuloParaEditar(articulo.id);
+            await cargarArticuloParaEditar(articulo.id);
         });
 
-        deleteButton.addEventListener('click', (event) => {
+        deleteButton.addEventListener('click', async (event) => {
             event.stopPropagation();
-            eliminarArticulo(articulo.id);
+            await eliminarArticulo(articulo.id);
         });
 
-        row.addEventListener('click', () => {
-            cargarArticuloParaEditar(articulo.id);
+        row.addEventListener('click', async () => {
+            await cargarArticuloParaEditar(articulo.id);
         });
 
         historialBody.appendChild(row);
     });
+}
+
+// Función para exportar backup a PDF
+async function exportarBackupPDF() {
+    console.log("[exportarBackupPDF] Iniciando exportación a PDF...");
+    const articulos = await getArticulosFromStorage();
+
+    if (articulos.length === 0) {
+        showSnackbar('No hay artículos guardados para exportar.', 'info');
+        return;
+    }
+
+    const doc = new jsPDF();
+    const formatCurrency = (value) => (typeof value === 'number' && isFinite(value))
+        ? value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : 'N/A';
+
+    doc.setFontSize(16);
+    doc.text('Backup de Artículos - Costo de Fondos Artesanales', 20, 20);
+    doc.setFontSize(12);
+    doc.text(`Fecha de exportación: ${new Date().toLocaleDateString('es-AR')}`, 20, 30);
+    doc.text(`Total de artículos: ${articulos.length}`, 20, 40);
+
+    let yPosition = 60;
+
+    articulos.forEach((articulo, index) => {
+        if (yPosition > 250) { // Nueva página si es necesario
+            doc.addPage();
+            yPosition = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.text(`Artículo ${index + 1}: ${articulo.nombre || 'Sin nombre'}`, 20, yPosition);
+        yPosition += 10;
+
+        doc.setFontSize(10);
+        doc.text(`Cliente: ${articulo.cliente || 'Sin cliente'}`, 20, yPosition);
+        yPosition += 8;
+        doc.text(`Fecha: ${articulo.fecha || 'Sin fecha'}`, 20, yPosition);
+        yPosition += 8;
+        doc.text(`Características: ${articulo.caracteristicas || 'Sin características'}`, 20, yPosition);
+        yPosition += 8;
+
+        doc.text('Componentes:', 20, yPosition);
+        yPosition += 8;
+        if (articulo.componentes && articulo.componentes.length > 0) {
+            articulo.componentes.forEach((comp, compIndex) => {
+                doc.text(`  ${compIndex + 1}. ${comp.nombre || 'Sin nombre'}: ${comp.costo || 'Sin costo'}`, 30, yPosition);
+                yPosition += 6;
+                if (comp.subcomponentes && comp.subcomponentes.length > 0) {
+                    comp.subcomponentes.forEach(sub => {
+                        doc.text(`    - ${sub.nombre || 'Sin nombre'}: ${sub.costo || 'Sin costo'}`, 40, yPosition);
+                        yPosition += 6;
+                    });
+                }
+            });
+        } else {
+            doc.text('  Sin componentes', 30, yPosition);
+            yPosition += 8;
+        }
+
+        doc.text(`Costo Total: $ ${formatCurrency(articulo.costoTotal)}`, 20, yPosition);
+        yPosition += 8;
+        doc.text(`Precio Final: $ ${formatCurrency(articulo.precioFinal)}`, 20, yPosition);
+        yPosition += 8;
+        doc.text(`Factor Multiplicador: ${articulo.markup || 'N/A'}`, 20, yPosition);
+        yPosition += 10;
+
+        // Si hay imagen, intentar agregarla (solo si es pequeña)
+        if (articulo.fotoDataUrl && articulo.fotoDataUrl.startsWith('data:image')) {
+            try {
+                // Extraer el tipo y datos base64
+                const [mimeType, base64Data] = articulo.fotoDataUrl.split(',');
+                const imageType = mimeType.split(':')[1].split(';')[0]; // e.g., 'image/jpeg'
+
+                // Solo agregar si no excede el espacio
+                if (yPosition < 200) {
+                    doc.addImage(articulo.fotoDataUrl, imageType, 20, yPosition, 50, 50);
+                    yPosition += 60;
+                } else {
+                    doc.text('Imagen adjunta (no mostrada en PDF)', 20, yPosition);
+                    yPosition += 10;
+                }
+            } catch (error) {
+                console.error('Error al agregar imagen al PDF:', error);
+                doc.text('Error al incluir imagen', 20, yPosition);
+                yPosition += 10;
+            }
+        } else {
+            doc.text('Sin imagen', 20, yPosition);
+            yPosition += 10;
+        }
+
+        yPosition += 10; // Espacio entre artículos
+    });
+
+    // Descargar el PDF
+    doc.save(`backup_articulos_${new Date().toISOString().split('T')[0]}.pdf`);
+    showSnackbar('Backup exportado a PDF con éxito.', 'success');
+    console.log("[exportarBackupPDF] PDF generado y descargado.");
 }
 
 // Agregar listener para la búsqueda
@@ -819,26 +964,26 @@ form.addEventListener('submit', guardarArticulo);
 limpiarBtn.addEventListener('click', limpiarFormulario);
 fotoInput.addEventListener('change', handleFotoSelection); // Listener para el input de foto
 clearFotoBtn.addEventListener('click', clearImagePreview); // Listener para limpiar la foto
+backupBtn.addEventListener('click', exportarBackupPDF); // Listener para el botón de backup
 
 // Add input listeners to markup for real-time price update
 markupInput.addEventListener('input', calcularCostos);
 markupInput.addEventListener('blur', calcularCostos);
 
 // --- Inicialización ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log("[DOMContentLoaded] Página cargada. Iniciando aplicación...");
 
-    // Check if localStorage is available and usable
-    let localStorageAvailable = false;
+    // Check if IndexedDB is available and usable
+    let storageAvailable = false;
     try {
-        localStorage.setItem('__test__', 'test');
-        localStorage.removeItem('__test__');
-        localStorageAvailable = true;
-        console.log("[DOMContentLoaded] localStorage está disponible y funciona.");
+        await openDB();
+        storageAvailable = true;
+        console.log("[DOMContentLoaded] IndexedDB está disponible y funciona.");
     } catch (e) {
-        console.error("[DOMContentLoaded] localStorage NO está disponible o está deshabilitado!", e);
-        showSnackbar("Advertencia: El almacenamiento local no está disponible. No se podrán guardar ni cargar artículos.", "error");
-        // Optionally disable save/load features if localStorage is crucial
+        console.error("[DOMContentLoaded] IndexedDB NO está disponible o está deshabilitado!", e);
+        showSnackbar("Advertencia: El almacenamiento no está disponible. No se podrán guardar ni cargar artículos.", "error");
+        // Optionally disable save/load features if storage is crucial
         guardarBtn.disabled = true;
         limpiarBtn.disabled = true; // Or adjust functionality
     }
@@ -858,10 +1003,10 @@ document.addEventListener('DOMContentLoaded', () => {
     agregarComponente(); // Add the first empty component row
 
     // Load history only if storage is available
-    if (localStorageAvailable) {
-        cargarHistorial();
+    if (storageAvailable) {
+        await cargarHistorial();
     } else {
-        historialBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">El almacenamiento local no está disponible. No se puede cargar el historial.</td></tr>'; // Colspan aumentado a 7
+        historialBody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">El almacenamiento no está disponible. No se puede cargar el historial.</td></tr>'; // Colspan aumentado a 7
     }
 
     console.log("[DOMContentLoaded] Inicialización completada.");
