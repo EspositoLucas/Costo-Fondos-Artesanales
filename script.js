@@ -21,10 +21,16 @@ const fotoPlaceholder = document.getElementById('fotoPlaceholder');
 const clearFotoBtn = document.getElementById('clearFotoBtn');
 const buscarArticuloInput = document.getElementById('buscarArticulo');
 const backupBtn = document.getElementById('backupBtn');
+const importBackupBtn = document.getElementById('importBackupBtn');
+const importBackupInput = document.getElementById('importBackupInput');
 let currentEditingId = null;
 
 // Importar jsPDF
 const { jsPDF } = window.jspdf;
+const pdfjsLib = window.pdfjsLib;
+if (pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
 
 // Clave para localStorage
 const STORAGE_KEY = 'articulosCalzado';
@@ -64,6 +70,16 @@ function showSnackbar(message, type = 'info') {
         snackbar.classList.remove('opacity-100');
         snackbar.classList.add('opacity-0');
     }, 3000);
+}
+
+function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
 }
 
 // Evaluar expresión matemática simple de forma segura
@@ -156,9 +172,9 @@ function agregarComponente(nombre = '', costo = '', subcomponentes = []) {
     // Crear el HTML para el componente principal
     div.innerHTML = `
         <div class="component-main">
-            <input type="text" placeholder="Nombre Componente (Ej: Suela)" value="${nombre}" 
+            <input type="text" placeholder="Nombre Componente (Ej: Suela)" value="${escapeHTML(nombre)}"
                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm component-name">
-            <input type="text" placeholder="Costo o Cálculo (Ej: 3000 o 450*1.2)" value="${costo}" 
+            <input type="text" placeholder="Costo o Cálculo (Ej: 3000 o 450*1.2)" value="${escapeHTML(costo)}"
                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm component-cost">
             <div class="flex space-x-2">
                 <button type="button" class="add-subcomponent-button" title="Añadir subcomponente">
@@ -243,9 +259,9 @@ function agregarComponente(nombre = '', costo = '', subcomponentes = []) {
             const subcomponentDiv = document.createElement('div');
             subcomponentDiv.className = 'subcomponent-input-group';
             subcomponentDiv.innerHTML = `
-                <input type="text" placeholder="Nombre Subcomponente" value="${sub.nombre}" 
+                <input type="text" placeholder="Nombre Subcomponente" value="${escapeHTML(sub.nombre)}"
                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm subcomponent-name">
-                <input type="text" placeholder="Costo o Cálculo" value="${sub.costo}" 
+                <input type="text" placeholder="Costo o Cálculo" value="${escapeHTML(sub.costo)}"
                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm subcomponent-cost">
                 <button type="button" class="delete-button-text" title="Eliminar subcomponente">
                     Eliminar
@@ -622,13 +638,13 @@ async function cargarHistorial() {
 
         // Generar HTML para la imagen (miniatura o placeholder)
         const fotoHtml = articulo.fotoDataUrl
-            ? `<img src="${articulo.fotoDataUrl}" alt="Miniatura ${articulo.nombre || ''}" class="historial-foto-miniatura">`
+            ? `<img src="${escapeHTML(articulo.fotoDataUrl)}" alt="Miniatura ${escapeHTML(articulo.nombre)}" class="historial-foto-miniatura">`
             : '<span class="text-xs text-gray-400">Sin foto</span>'; // Placeholder si no hay imagen
 
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${articulo.fecha || 'Sin fecha'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.nombre || 'Sin nombre'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.cliente || 'Sin cliente'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHTML(articulo.fecha || 'Sin fecha')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(articulo.nombre || 'Sin nombre')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(articulo.cliente || 'Sin cliente')}</td>
             <td class="px-2 py-2 whitespace-nowrap text-sm text-gray-500 align-middle text-center">${fotoHtml}</td> <!-- Celda Foto -->
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">$ ${formatCurrency(articulo.costoTotal)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-semibold">$ ${formatCurrency(articulo.precioFinal)}</td>
@@ -810,13 +826,13 @@ async function filtrarHistorial(busqueda) {
 
         // Generar HTML para la imagen
         const fotoHtml = articulo.fotoDataUrl
-            ? `<img src="${articulo.fotoDataUrl}" alt="Miniatura ${articulo.nombre || ''}" class="historial-foto-miniatura">`
+            ? `<img src="${escapeHTML(articulo.fotoDataUrl)}" alt="Miniatura ${escapeHTML(articulo.nombre)}" class="historial-foto-miniatura">`
             : '<span class="text-xs text-gray-400">Sin foto</span>';
 
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${articulo.fecha || 'Sin fecha'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.nombre || 'Sin nombre'}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${articulo.cliente || 'Sin cliente'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHTML(articulo.fecha || 'Sin fecha')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(articulo.nombre || 'Sin nombre')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHTML(articulo.cliente || 'Sin cliente')}</td>
             <td class="px-2 py-2 whitespace-nowrap text-sm text-gray-500 align-middle text-center">${fotoHtml}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">$ ${formatCurrency(articulo.costoTotal)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right font-semibold">$ ${formatCurrency(articulo.precioFinal)}</td>
@@ -863,6 +879,10 @@ async function exportarBackupPDF() {
     }
 
     const doc = new jsPDF();
+    doc.setProperties({
+        title: 'Backup de Artículos - Costo de Fondos Artesanales',
+        subject: `articulosCalzadoBackup:${encodeBackupMetadata(articulos)}`
+    });
     const formatCurrency = (value) => (typeof value === 'number' && isFinite(value))
         ? value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : 'N/A';
@@ -952,6 +972,221 @@ async function exportarBackupPDF() {
     console.log("[exportarBackupPDF] PDF generado y descargado.");
 }
 
+function encodeBackupMetadata(articulos) {
+    const bytes = new TextEncoder().encode(JSON.stringify({
+        formato: 'articulosCalzadoBackup',
+        version: 1,
+        articulos
+    }));
+    let binary = '';
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    }
+    return btoa(binary);
+}
+
+function decodeBackupMetadata(subject) {
+    const prefix = 'articulosCalzadoBackup:';
+    if (!subject || !subject.startsWith(prefix)) return null;
+
+    const binary = atob(subject.slice(prefix.length));
+    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+    const backup = JSON.parse(new TextDecoder().decode(bytes));
+    if (backup.formato !== 'articulosCalzadoBackup' || backup.version !== 1 || !Array.isArray(backup.articulos)) {
+        throw new Error('El contenido de respaldo del PDF no tiene un formato válido.');
+    }
+    return backup.articulos;
+}
+
+function parseCurrencyFromPDF(value) {
+    const cleaned = value.replace(/\$/g, '').replace(/\s/g, '').trim();
+    if (!cleaned || cleaned === 'N/A') return null;
+    const normalized = cleaned.includes(',')
+        ? cleaned.replace(/\./g, '').replace(',', '.')
+        : cleaned;
+    const number = Number(normalized);
+    return Number.isFinite(number) ? number : null;
+}
+
+function parseLegacyPDFBackupLines(lines) {
+    const articulos = [];
+    let articuloActual = null;
+    let componenteActual = null;
+    let leyendoComponentes = false;
+
+    lines.forEach(line => {
+        const articleMatch = line.match(/^Artículo\s+\d+:\s*(.*)$/i);
+        if (articleMatch) {
+            articuloActual = {
+                id: '',
+                nombre: articleMatch[1].trim(),
+                cliente: '',
+                fecha: '',
+                caracteristicas: '',
+                componentes: [],
+                markup: 1.8,
+                costoTotal: null,
+                precioFinal: null,
+                fotoDataUrl: null
+            };
+            articulos.push(articuloActual);
+            componenteActual = null;
+            leyendoComponentes = false;
+            return;
+        }
+        if (!articuloActual) return;
+
+        let match = line.match(/^Cliente:\s*(.*)$/i);
+        if (match) {
+            articuloActual.cliente = match[1] === 'Sin cliente' ? '' : match[1].trim();
+            return;
+        }
+        match = line.match(/^Fecha:\s*(.*)$/i);
+        if (match) {
+            articuloActual.fecha = match[1] === 'Sin fecha' ? '' : match[1].trim();
+            return;
+        }
+        match = line.match(/^Características:\s*(.*)$/i);
+        if (match) {
+            articuloActual.caracteristicas = match[1] === 'Sin características' ? '' : match[1].trim();
+            return;
+        }
+        if (/^Componentes:\s*$/i.test(line)) {
+            leyendoComponentes = true;
+            return;
+        }
+        match = line.match(/^Costo Total:\s*(.*)$/i);
+        if (match) {
+            articuloActual.costoTotal = parseCurrencyFromPDF(match[1]);
+            leyendoComponentes = false;
+            return;
+        }
+        match = line.match(/^Precio Final:\s*(.*)$/i);
+        if (match) {
+            articuloActual.precioFinal = parseCurrencyFromPDF(match[1]);
+            return;
+        }
+        match = line.match(/^Factor Multiplicador:\s*(.*)$/i);
+        if (match) {
+            const markup = Number(match[1].replace(',', '.'));
+            articuloActual.markup = Number.isFinite(markup) ? markup : 1.8;
+            return;
+        }
+
+        if (!leyendoComponentes || /^Sin componentes$/i.test(line.trim())) return;
+        match = line.match(/^\s*-\s*(.*?):\s*(.*)$/);
+        if (match && componenteActual) {
+            componenteActual.subcomponentes.push({
+                nombre: match[1].trim(),
+                costo: match[2].trim() === 'Sin costo' ? '' : match[2].trim()
+            });
+            return;
+        }
+        match = line.match(/^\s*\d+\.\s*(.*?):\s*(.*)$/);
+        if (match) {
+            componenteActual = {
+                nombre: match[1].trim() === 'Sin nombre' ? '' : match[1].trim(),
+                costo: match[2].trim() === 'Sin costo' ? '' : match[2].trim(),
+                subcomponentes: []
+            };
+            articuloActual.componentes.push(componenteActual);
+        }
+    });
+
+    return articulos.filter(articulo => articulo.nombre);
+}
+
+async function readPDFBackup(file) {
+    if (!pdfjsLib) {
+        throw new Error('No se pudo cargar el lector PDF. Recarga la página e inténtalo nuevamente.');
+    }
+    const document = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const metadata = await document.getMetadata();
+    const backup = decodeBackupMetadata(metadata.info.Subject);
+    if (backup) return backup;
+
+    const lines = [];
+    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) {
+        const page = await document.getPage(pageNumber);
+        const content = await page.getTextContent();
+        const rows = [];
+        content.items.forEach(item => {
+            if (!('str' in item) || !item.str.trim()) return;
+            const y = item.transform[5];
+            let row = rows.find(candidate => Math.abs(candidate.y - y) < 2);
+            if (!row) {
+                row = { y, items: [] };
+                rows.push(row);
+            }
+            row.items.push(item);
+        });
+        rows.sort((a, b) => b.y - a.y);
+        rows.forEach(row => {
+            row.items.sort((a, b) => a.transform[4] - b.transform[4]);
+            lines.push(row.items.map(item => item.str).join(' ').trim());
+        });
+    }
+    return parseLegacyPDFBackupLines(lines);
+}
+
+async function importarBackupPDF(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+            throw new Error('Selecciona un archivo PDF válido.');
+        }
+        const articulosImportados = await readPDFBackup(file);
+        if (!articulosImportados.length) {
+            throw new Error('No se encontraron artículos en el PDF. Importa un backup exportado desde esta aplicación.');
+        }
+        if (!articulosImportados.every(articulo =>
+            articulo && typeof articulo === 'object' && typeof articulo.nombre === 'string' &&
+            typeof articulo.cliente === 'string' && typeof articulo.fecha === 'string' &&
+            Array.isArray(articulo.componentes) &&
+            articulo.componentes.every(componente =>
+                componente && typeof componente.nombre === 'string' && typeof componente.costo === 'string' &&
+                Array.isArray(componente.subcomponentes) &&
+                componente.subcomponentes.every(subcomponente =>
+                    subcomponente && typeof subcomponente.nombre === 'string' &&
+                    typeof subcomponente.costo === 'string'
+                )
+            ) &&
+            (articulo.fotoDataUrl === null ||
+                (typeof articulo.fotoDataUrl === 'string' && articulo.fotoDataUrl.startsWith('data:image/')))
+        )) {
+            throw new Error('El PDF contiene artículos con datos incompletos o un formato no compatible.');
+        }
+
+        const articulosGuardados = await getArticulosFromStorage();
+        const idsUtilizados = new Set(articulosGuardados.map(articulo => String(articulo.id)));
+        const nuevosArticulos = articulosImportados.map((articulo, index) => {
+            let id = articulo.id ? String(articulo.id) : '';
+            if (!id || idsUtilizados.has(id)) {
+                id = `importado_${Date.now()}_${index}`;
+                while (idsUtilizados.has(id)) id = `${id}_nuevo`;
+            }
+            idsUtilizados.add(id);
+            return { ...articulo, id };
+        });
+
+        if (!await saveArticulosToStorage([...articulosGuardados, ...nuevosArticulos])) return;
+        if (buscarArticuloInput.value.trim()) {
+            await filtrarHistorial(buscarArticuloInput.value);
+        } else {
+            await cargarHistorial();
+        }
+        showSnackbar(`Se importaron ${nuevosArticulos.length} artículo(s) del PDF.`, 'success');
+        console.log(`[importarBackupPDF] ${nuevosArticulos.length} artículos importados desde ${file.name}.`);
+    } catch (error) {
+        console.error('[importarBackupPDF] Error al importar el PDF:', error);
+        showSnackbar(error.message || 'No se pudo importar el PDF.', 'error');
+    } finally {
+        importBackupInput.value = '';
+    }
+}
+
 // Agregar listener para la búsqueda
 buscarArticuloInput.addEventListener('input', (e) => {
     filtrarHistorial(e.target.value);
@@ -965,6 +1200,8 @@ limpiarBtn.addEventListener('click', limpiarFormulario);
 fotoInput.addEventListener('change', handleFotoSelection); // Listener para el input de foto
 clearFotoBtn.addEventListener('click', clearImagePreview); // Listener para limpiar la foto
 backupBtn.addEventListener('click', exportarBackupPDF); // Listener para el botón de backup
+importBackupBtn.addEventListener('click', () => importBackupInput.click());
+importBackupInput.addEventListener('change', importarBackupPDF);
 
 // Add input listeners to markup for real-time price update
 markupInput.addEventListener('input', calcularCostos);
